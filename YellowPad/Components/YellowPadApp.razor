@@ -1,0 +1,215 @@
+@inject ITodoService TodoService
+@inject ILogger<YellowPadApp> Logger
+
+<main class="app-shell">
+    <section class="pad" aria-labelledby="pad-title" aria-busy="@_isBusy.ToString().ToLowerInvariant()">
+        <YellowPadHeader CompletedCount="CompletedCount"
+                         OnShowCompleted="ShowCompleted"
+                         OnDeleteCompleted="DeleteCompletedAsync"
+                         OnRequestDeleteAll="ShowDeleteAllConfirmation"
+                         OnShowAbout="ShowAbout" />
+
+        @if (_errorMessage is not null)
+        {
+            <div class="pad-error" role="alert">
+                <span>@_errorMessage</span>
+                <button type="button" aria-label="Dismiss error" @onclick="DismissError">×</button>
+            </div>
+        }
+
+        <NewTaskEntry OnAdd="AddTaskAsync" Disabled="_isBusy" />
+        <TodoList Items="_items"
+                  Disabled="_isBusy"
+                  OnToggle="ToggleTaskAsync"
+                  OnDelete="DeleteTaskAsync"
+                  OnSave="SaveTaskAsync" />
+        <YellowPadFooter TotalCount="_items.Count"
+                         CompletedCount="CompletedCount"
+                         IsLoading="_isLoading" />
+    </section>
+</main>
+
+@if (_showCompleted)
+{
+    var completedItems = CompletedTaskView.Select(_items);
+    <div class="modal-scrim" @onclick="HideCompleted">
+        <section class="paper-dialog completed-dialog" role="dialog" aria-modal="true" aria-labelledby="completed-title" @onclick:stopPropagation>
+            <p class="dialog-kicker">Finished</p>
+            <h2 id="completed-title">Completed tasks</h2>
+            @if (completedItems.Count == 0)
+            {
+                <p class="completed-empty" role="status">No completed tasks yet.</p>
+            }
+            else
+            {
+                <ul class="completed-task-list" aria-label="Completed tasks">
+                    @foreach (var item in completedItems)
+                    {
+                        <li @key="item.Id">
+                            <span class="completed-task-mark" aria-hidden="true">✓</span>
+                            <span class="completed-task-copy">
+                                <span class="completed-task-title">@item.Title</span>
+                                @if (item.CompletedUtc is { } completedUtc)
+                                {
+                                    <time class="completed-task-date" datetime="@completedUtc.ToString("O")">
+                                        Completed @CompletedTaskView.FormatCompletedDate(completedUtc)
+                                    </time>
+                                }
+                                else
+                                {
+                                    <span class="completed-task-date">Date unavailable</span>
+                                }
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+            <div class="dialog-actions">
+                <button type="button" class="primary-button" @ref="_completedDialogButton" @onclick="HideCompleted">Back to the pad</button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (_showDeleteAllConfirmation)
+{
+    <div class="modal-scrim" @onclick="HideDeleteAllConfirmation">
+        <section class="paper-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-all-title" @onclick:stopPropagation>
+            <p class="dialog-kicker">Clear the pad?</p>
+            <h2 id="delete-all-title">Delete every task</h2>
+            <p>This can’t be undone. The page will be completely blank.</p>
+            <div class="dialog-actions">
+                <button type="button" class="text-button" @onclick="HideDeleteAllConfirmation">Keep tasks</button>
+                <button type="button" class="danger-button" @onclick="DeleteAllAsync">Delete all</button>
+            </div>
+        </section>
+    </div>
+}
+
+@if (_showAbout)
+{
+    <div class="modal-scrim" @onclick="HideAbout">
+        <section class="paper-dialog about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-title" @onclick:stopPropagation>
+            <p class="dialog-kicker">A small desktop notebook</p>
+            <h2 id="about-title">About YellowPad</h2>
+            <p>YellowPad keeps a focused todo list on your Windows desktop. Razor components run natively inside WPF, and every change is stored locally in SQLite.</p>
+            <div class="dialog-actions">
+                <button type="button" class="primary-button" @onclick="HideAbout">Back to the pad</button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private ElementReference _completedDialogButton;
+    private List<TodoItem> _items = [];
+    private bool _isLoading = true;
+    private bool _isBusy;
+    private bool _showCompleted;
+    private bool _focusCompletedDialog;
+    private bool _showDeleteAllConfirmation;
+    private bool _showAbout;
+    private string? _errorMessage;
+
+    private int CompletedCount => _items.Count(item => item.IsCompleted);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+        _isLoading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusCompletedDialog)
+        {
+            _focusCompletedDialog = false;
+            await _completedDialogButton.FocusAsync();
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _items = (await TodoService.GetTasksAsync()).ToList();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Unable to refresh the YellowPad task list.");
+            _errorMessage = "The pad couldn’t be loaded. Your saved tasks are still on this computer.";
+        }
+    }
+
+    private async Task<bool> AddTaskAsync(string title) => await RunMutationAsync(
+        () => TodoService.AddTaskAsync(title),
+        "That task couldn’t be added.");
+
+    private async Task ToggleTaskAsync(int id) => await RunMutationAsync(
+        () => TodoService.ToggleCompletedAsync(id),
+        "That task couldn’t be updated.");
+
+    private async Task DeleteTaskAsync(int id) => await RunMutationAsync(
+        () => TodoService.DeleteTaskAsync(id),
+        "That task couldn’t be deleted.");
+
+    private async Task<bool> SaveTaskAsync(TodoItem item) => await RunMutationAsync(
+        () => TodoService.UpdateTaskAsync(item),
+        "That edit couldn’t be saved.");
+
+    private async Task DeleteCompletedAsync()
+    {
+        await RunMutationAsync(
+            TodoService.DeleteCompletedAsync,
+            "Completed tasks couldn’t be deleted.");
+    }
+
+    private async Task DeleteAllAsync()
+    {
+        if (await RunMutationAsync(TodoService.DeleteAllAsync, "The pad couldn’t be cleared."))
+        {
+            _showDeleteAllConfirmation = false;
+        }
+    }
+
+    private async Task<bool> RunMutationAsync(Func<Task> action, string errorMessage)
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            await action();
+            await ReloadAsync();
+            return _errorMessage is null;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "A YellowPad task operation failed.");
+            _errorMessage = errorMessage;
+            return false;
+        }
+        finally
+        {
+            _isBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ShowDeleteAllConfirmation() => _showDeleteAllConfirmation = true;
+    private void HideDeleteAllConfirmation() => _showDeleteAllConfirmation = false;
+    private void ShowCompleted()
+    {
+        _showCompleted = true;
+        _focusCompletedDialog = true;
+    }
+
+    private void HideCompleted()
+    {
+        _showCompleted = false;
+        _focusCompletedDialog = false;
+    }
+    private void ShowAbout() => _showAbout = true;
+    private void HideAbout() => _showAbout = false;
+    private void DismissError() => _errorMessage = null;
+}

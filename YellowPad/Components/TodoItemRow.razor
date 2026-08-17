@@ -1,0 +1,144 @@
+<li class="todo-row @(Item.IsCompleted ? "is-completed" : null)">
+    <button type="button"
+            class="completion-button"
+            disabled="@Disabled"
+            aria-label="@(Item.IsCompleted ? "Mark task incomplete" : "Complete task")"
+            @onclick="ToggleAsync">
+        <span aria-hidden="true">@(Item.IsCompleted ? "✓" : "○")</span>
+    </button>
+
+    @if (_isEditing)
+    {
+        <label class="visually-hidden" for="edit-task-@Item.Id">Edit task</label>
+        <input id="edit-task-@Item.Id"
+               @ref="_editor"
+               class="paper-input edit-task-input"
+               maxlength="500"
+               autocomplete="off"
+               @bind="_editTitle"
+               @bind:event="oninput"
+               @onkeydown="HandleEditKeyDown"
+               @onblur="SaveOnBlurAsync" />
+    }
+    else
+    {
+        <button type="button"
+                class="task-title"
+                aria-label="Edit task: @Item.Title"
+                title="Double-click to edit"
+                @onclick="HandleTitleClick"
+                @onkeydown="HandleTitleKeyDown">@Item.Title</button>
+    }
+
+    <button type="button"
+            class="delete-task-button"
+            disabled="@Disabled"
+            aria-label="Delete task"
+            @onclick="DeleteAsync">×</button>
+</li>
+
+@code {
+    [Parameter, EditorRequired] public TodoItem Item { get; set; } = null!;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter, EditorRequired] public Func<int, Task>? OnToggle { get; set; }
+    [Parameter, EditorRequired] public Func<int, Task>? OnDelete { get; set; }
+    [Parameter, EditorRequired] public Func<TodoItem, Task<bool>>? OnSave { get; set; }
+
+    private ElementReference _editor;
+    private string _editTitle = string.Empty;
+    private bool _isEditing;
+    private bool _focusEditor;
+    private bool _isSaving;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusEditor)
+        {
+            _focusEditor = false;
+            await _editor.FocusAsync();
+        }
+    }
+
+    private Task ToggleAsync() => OnToggle?.Invoke(Item.Id) ?? Task.CompletedTask;
+    private Task DeleteAsync() => OnDelete?.Invoke(Item.Id) ?? Task.CompletedTask;
+
+    private void HandleTitleClick(MouseEventArgs args)
+    {
+        if (TaskEditTrigger.ShouldStartEditing(args.Detail))
+        {
+            StartEditing();
+        }
+    }
+
+    private void StartEditing()
+    {
+        if (Disabled)
+        {
+            return;
+        }
+
+        _editTitle = Item.Title;
+        _isEditing = true;
+        _focusEditor = true;
+    }
+
+    private void HandleTitleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key is "Enter" or "F2")
+        {
+            StartEditing();
+        }
+    }
+
+    private async Task HandleEditKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            _isEditing = false;
+            _editTitle = Item.Title;
+            return;
+        }
+
+        if (args.Key == "Enter")
+        {
+            await SaveAsync();
+        }
+    }
+
+    private async Task SaveOnBlurAsync()
+    {
+        if (_isEditing)
+        {
+            await SaveAsync();
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        var trimmedTitle = _editTitle.Trim();
+        if (trimmedTitle.Length == 0)
+        {
+            _editTitle = Item.Title;
+            _isEditing = false;
+            return;
+        }
+
+        if (trimmedTitle == Item.Title || OnSave is null)
+        {
+            _isEditing = false;
+            return;
+        }
+
+        _isSaving = true;
+        var editedItem = new TodoItem { Id = Item.Id, Title = trimmedTitle };
+        var saved = await OnSave(editedItem);
+        _isSaving = false;
+        _isEditing = !saved;
+        _focusEditor = !saved;
+    }
+}

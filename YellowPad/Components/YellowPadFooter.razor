@@ -1,0 +1,10 @@
+<footer class="pad-footer" aria-live="polite">
+    <span>@(IsLoading ? "Opening the pad…" : TodoSummary.Format(TotalCount, CompletedCount))</span>
+    <span class="footer-mark" aria-hidden="true">YP</span>
+</footer>
+
+@code {
+    [Parameter] public int TotalCount { get; set; }
+    [Parameter] public int CompletedCount { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+}

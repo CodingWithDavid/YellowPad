@@ -1,0 +1,78 @@
+@using YellowPad.Services
+@inject IWindowService WindowService
+
+<header class="pad-header">
+    <div>
+        <p class="eyebrow">Today’s list</p>
+        <h1 id="pad-title">YellowPad</h1>
+    </div>
+    <div class="header-actions">
+        <div class="pad-menu">
+            <button type="button"
+                    class="menu-trigger"
+                    aria-label="YellowPad menu"
+                    aria-expanded="@_isOpen.ToString().ToLowerInvariant()"
+                    @onclick="ToggleMenu">•••</button>
+            @if (_isOpen)
+            {
+                <div class="menu-popover" role="menu">
+                    <button type="button" role="menuitem" @onclick="ShowCompletedAsync">View completed tasks</button>
+                    <span class="menu-rule" aria-hidden="true"></span>
+                    <button type="button" role="menuitem" disabled="@(CompletedCount == 0)" @onclick="DeleteCompletedAsync">
+                        Delete completed tasks
+                    </button>
+                    <button type="button" role="menuitem" @onclick="RequestDeleteAllAsync">Delete all tasks</button>
+                    <span class="menu-rule" aria-hidden="true"></span>
+                    <button type="button" role="menuitem" @onclick="ShowAboutAsync">About YellowPad</button>
+                </div>
+            }
+        </div>
+        <div class="window-controls" role="group" aria-label="Window controls">
+            <button type="button" class="window-control" aria-label="Minimize YellowPad" title="Minimize" @onclick="WindowService.Minimize">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5h10" /></svg>
+            </button>
+            <button type="button" class="window-control" aria-label="Maximize or restore YellowPad" title="Maximize or restore" @onclick="WindowService.ToggleMaximize">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx=".5" /></svg>
+            </button>
+            <button type="button" class="window-control close-window" aria-label="Close YellowPad" title="Close" @onclick="WindowService.Close">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+            </button>
+        </div>
+    </div>
+</header>
+
+@code {
+    [Parameter] public int CompletedCount { get; set; }
+    [Parameter] public EventCallback OnShowCompleted { get; set; }
+    [Parameter] public EventCallback OnDeleteCompleted { get; set; }
+    [Parameter] public EventCallback OnRequestDeleteAll { get; set; }
+    [Parameter] public EventCallback OnShowAbout { get; set; }
+
+    private bool _isOpen;
+
+    private void ToggleMenu() => _isOpen = !_isOpen;
+
+    private async Task ShowCompletedAsync()
+    {
+        _isOpen = false;
+        await OnShowCompleted.InvokeAsync();
+    }
+
+    private async Task DeleteCompletedAsync()
+    {
+        _isOpen = false;
+        await OnDeleteCompleted.InvokeAsync();
+    }
+
+    private async Task RequestDeleteAllAsync()
+    {
+        _isOpen = false;
+        await OnRequestDeleteAll.InvokeAsync();
+    }
+
+    private async Task ShowAboutAsync()
+    {
+        _isOpen = false;
+        await OnShowAbout.InvokeAsync();
+    }
+}

@@ -1,0 +1,21 @@
+<div class="task-scroll-region">
+    <ul class="todo-list" aria-label="Tasks">
+        @foreach (var item in Items)
+        {
+            <TodoItemRow @key="item.Id"
+                         Item="item"
+                         Disabled="Disabled"
+                         OnToggle="OnToggle"
+                         OnDelete="OnDelete"
+                         OnSave="OnSave" />
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<TodoItem> Items { get; set; } = [];
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter, EditorRequired] public Func<int, Task>? OnToggle { get; set; }
+    [Parameter, EditorRequired] public Func<int, Task>? OnDelete { get; set; }
+    [Parameter, EditorRequired] public Func<TodoItem, Task<bool>>? OnSave { get; set; }
+}

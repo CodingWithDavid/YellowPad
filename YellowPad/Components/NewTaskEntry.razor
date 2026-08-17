@@ -1,0 +1,164 @@
+@implements IDisposable
+@inject IVoiceCommandService VoiceCommands
+@inject ILogger<NewTaskEntry> Logger
+
+<div class="new-task-row">
+    <span class="new-task-mark" aria-hidden="true">+</span>
+    <label class="visually-hidden" for="new-task-input">New task</label>
+    <input id="new-task-input"
+           @ref="_input"
+           class="paper-input new-task-input"
+           placeholder="New task"
+           maxlength="@VoiceTaskInput.MaximumTitleLength"
+           autocomplete="off"
+           aria-describedby="voice-task-status"
+           disabled="@Disabled"
+           @bind="_title"
+           @bind:event="oninput"
+           @onkeydown="HandleKeyDown" />
+    <button type="button"
+            class="voice-task-button @(VoiceCommands.IsListening ? "is-listening" : null)"
+            disabled="@Disabled"
+            aria-label="@(VoiceCommands.IsListening ? "Stop voice input" : "Start voice input")"
+            aria-pressed="@VoiceCommands.IsListening.ToString().ToLowerInvariant()"
+            title="Speak a task, then say Enter"
+            @onclick="ToggleVoiceInput">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v4M9 21h6" />
+        </svg>
+    </button>
+    <span id="voice-task-status"
+          class="@(_showVoiceError ? "voice-feedback" : "visually-hidden")"
+          role="status"
+          aria-live="polite">@_voiceStatus</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Func<string, Task<bool>>? OnAdd { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private ElementReference _input;
+    private string _title = string.Empty;
+    private string _voiceStatus = "Voice input is off.";
+    private bool _showVoiceError;
+
+    protected override void OnInitialized()
+    {
+        VoiceCommands.PhraseRecognized += HandlePhraseRecognized;
+        VoiceCommands.ListeningChanged += HandleListeningChanged;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key != "Enter")
+        {
+            return;
+        }
+
+        VoiceCommands.Stop();
+        await SubmitAsync();
+    }
+
+    private void ToggleVoiceInput()
+    {
+        _showVoiceError = false;
+        if (VoiceCommands.IsListening)
+        {
+            VoiceCommands.Stop();
+            _voiceStatus = "Voice input stopped.";
+            return;
+        }
+
+        var result = VoiceCommands.Start();
+        if (!result.Started)
+        {
+            _voiceStatus = result.ErrorMessage ?? "Voice input is unavailable.";
+            _showVoiceError = true;
+            return;
+        }
+
+        _voiceStatus = "Listening. Say the task, then say Enter.";
+    }
+
+    private async void HandlePhraseRecognized(object? sender, VoicePhraseRecognizedEventArgs args)
+    {
+        try
+        {
+            await InvokeAsync(async () =>
+            {
+                var result = VoiceTaskInput.Interpret(_title, args.Phrase);
+                _title = result.Title;
+                _showVoiceError = false;
+
+                if (result.ShouldCreate)
+                {
+                    VoiceCommands.Stop();
+                    await SubmitAsync();
+                }
+                else
+                {
+                    _voiceStatus = $"Heard: {args.Phrase}";
+                    await _input.FocusAsync();
+                }
+
+                StateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException)
+        {
+            // The component was closed while Windows completed recognition.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Unable to apply YellowPad voice input.");
+        }
+    }
+
+    private async void HandleListeningChanged(object? sender, EventArgs args)
+    {
+        try
+        {
+            await InvokeAsync(() =>
+            {
+                if (!VoiceCommands.IsListening && !_showVoiceError)
+                {
+                    _voiceStatus = "Voice input is off.";
+                }
+
+                StateHasChanged();
+            });
+        }
+        catch (ObjectDisposedException)
+        {
+            // The component was closed while Windows completed recognition.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Unable to refresh the YellowPad voice input state.");
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_title) || OnAdd is null)
+        {
+            await _input.FocusAsync();
+            return;
+        }
+
+        if (await OnAdd(_title))
+        {
+            _title = string.Empty;
+        }
+
+        await _input.FocusAsync();
+    }
+
+    public void Dispose()
+    {
+        VoiceCommands.PhraseRecognized -= HandlePhraseRecognized;
+        VoiceCommands.ListeningChanged -= HandleListeningChanged;
+        VoiceCommands.Stop();
+    }
+}

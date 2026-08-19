@@ -7,7 +7,10 @@ public static class CompletedTaskView
     public static IReadOnlyList<TodoItem> Select(IReadOnlyList<TodoItem> tasks)
     {
         ArgumentNullException.ThrowIfNull(tasks);
-        return tasks.Where(task => task.IsCompleted).ToList();
+        return tasks
+            .Where(task => task.IsCompleted)
+            .OrderByDescending(task => task.CompletedUtc)
+            .ToList();
     }
 
     public static string FormatCompletedDate(DateTime? completedUtc, TimeZoneInfo? timeZone = null)

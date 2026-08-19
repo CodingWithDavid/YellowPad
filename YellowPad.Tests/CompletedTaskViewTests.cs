@@ -6,18 +6,31 @@ namespace YellowPad.Tests;
 public sealed class CompletedTaskViewTests
 {
     [Fact]
-    public void Select_OnlyReturnsCompletedTasksInTheirCurrentOrder()
+    public void Select_ReturnsCompletedTasksNewestFirstWithMissingDatesLast()
     {
         var tasks = new TodoItem[]
         {
             new() { Id = 1, Title = "Still active" },
-            new() { Id = 2, Title = "Finished first", IsCompleted = true },
-            new() { Id = 3, Title = "Finished second", IsCompleted = true }
+            new()
+            {
+                Id = 2,
+                Title = "Finished earlier",
+                IsCompleted = true,
+                CompletedUtc = new DateTime(2026, 8, 16, 10, 0, 0, DateTimeKind.Utc)
+            },
+            new()
+            {
+                Id = 3,
+                Title = "Finished latest",
+                IsCompleted = true,
+                CompletedUtc = new DateTime(2026, 8, 18, 8, 30, 0, DateTimeKind.Utc)
+            },
+            new() { Id = 4, Title = "Missing completion date", IsCompleted = true }
         };
 
         var completed = CompletedTaskView.Select(tasks);
 
-        Assert.Equal([2, 3], completed.Select(task => task.Id));
+        Assert.Equal([3, 2, 4], completed.Select(task => task.Id));
     }
 
     [Fact]

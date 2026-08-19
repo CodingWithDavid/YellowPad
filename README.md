@@ -17,7 +17,7 @@ YellowPad is a local-first todo application for Windows, built with WPF and a Bl
 ## Requirements
 
 - Windows 10 version 1809 or later
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (`global.json` requests SDK `10.0.300` or a later patch)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (`global.json` accepts SDK `10.0.300` or a newer .NET 10 feature band)
 - Microsoft Edge WebView2 Runtime
 - Visual Studio with the **.NET desktop development** workload, or the .NET CLI
 - A Windows desktop speech recognizer and microphone for voice input
@@ -46,7 +46,7 @@ dotnet run --project YellowPad\YellowPad.csproj
 3. Double-click a title to edit it. Press Enter to save or Escape to cancel.
 4. Select the × button to delete a task.
 
-Task titles are limited to 500 characters. Active tasks are displayed before completed tasks.
+Task titles are limited to 500 characters. On startup, the main pad hides tasks that were already completed; tasks completed during the current session remain visible until the next restart. All completed tasks remain saved in the completed-task history.
 
 ### Voice input
 

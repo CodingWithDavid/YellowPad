@@ -18,7 +18,7 @@
         }
 
         <NewTaskEntry OnAdd="AddTaskAsync" Disabled="_isBusy" />
-        <TodoList Items="_items"
+        <TodoList Items="@ActiveTaskView.Select(_items, _hiddenCompletedTaskIds)"
                   Disabled="_isBusy"
                   OnToggle="ToggleTaskAsync"
                   OnDelete="DeleteTaskAsync"
@@ -103,6 +103,8 @@
 @code {
     private ElementReference _completedDialogButton;
     private List<TodoItem> _items = [];
+    private readonly HashSet<int> _hiddenCompletedTaskIds = [];
+    private bool _hasLoadedInitialTasks;
     private bool _isLoading = true;
     private bool _isBusy;
     private bool _showCompleted;
@@ -133,6 +135,17 @@
         try
         {
             _items = (await TodoService.GetTasksAsync()).ToList();
+            if (!_hasLoadedInitialTasks)
+            {
+                _hiddenCompletedTaskIds.UnionWith(
+                    _items.Where(item => item.IsCompleted).Select(item => item.Id));
+                _hasLoadedInitialTasks = true;
+            }
+            else
+            {
+                _hiddenCompletedTaskIds.IntersectWith(
+                    _items.Where(item => item.IsCompleted).Select(item => item.Id));
+            }
         }
         catch (Exception exception)
         {

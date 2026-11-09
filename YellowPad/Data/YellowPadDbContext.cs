@@ -22,6 +22,7 @@ public sealed class YellowPadDbContext(DbContextOptions<YellowPadDbContext> opti
 
         var item = modelBuilder.Entity<TodoItem>();
         item.Property(todo => todo.Title).IsRequired().HasMaxLength(500);
+        item.Property(todo => todo.Color).HasDefaultValue(TaskColor.Default);
         item.Property(todo => todo.CreatedUtc).HasConversion(utcConverter);
         item.Property(todo => todo.CompletedUtc).HasConversion(nullableUtcConverter);
         item.Property(todo => todo.UpdatedUtc).HasConversion(nullableUtcConverter);

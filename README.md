@@ -5,7 +5,9 @@ YellowPad is a local-first todo application for Windows, built with WPF and a Bl
 ## Features
 
 - Create, complete, edit, and delete tasks.
+- Check spelling while entering or editing task titles.
 - Double-click a task title to edit it in place.
+- Right-click a task title to set its text to red, blue, green, pink, or the default color.
 - Use Enter or F2 to edit a focused task and Escape to cancel an edit.
 - View completed tasks with their local completion dates.
 - Delete completed tasks or clear the entire pad from the application menu.
@@ -45,8 +47,11 @@ dotnet run --project YellowPad\YellowPad.csproj
 2. Select the circle beside a task to mark it complete or incomplete.
 3. Double-click a title to edit it. Press Enter to save or Escape to cancel.
 4. Select the × button to delete a task.
+5. Right-click a task title and choose a text color to mark its priority.
 
 Task titles are limited to 500 characters. On startup, the main pad hides tasks that were already completed; tasks completed during the current session remain visible until the next restart. All completed tasks remain saved in the completed-task history.
+
+Right-click a misspelled word while entering or editing a task to see spelling suggestions.
 
 ### Voice input
 

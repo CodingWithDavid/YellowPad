@@ -4,6 +4,7 @@ public sealed class TodoItem
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
+    public TaskColor Color { get; set; }
     public bool IsCompleted { get; set; }
     public DateTime CreatedUtc { get; set; }
     public DateTime? CompletedUtc { get; set; }

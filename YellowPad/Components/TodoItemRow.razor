@@ -12,9 +12,10 @@
         <label class="visually-hidden" for="edit-task-@Item.Id">Edit task</label>
         <input id="edit-task-@Item.Id"
                @ref="_editor"
-               class="paper-input edit-task-input"
+               class="paper-input edit-task-input task-color-@Item.Color.ToString().ToLowerInvariant()"
                maxlength="500"
                autocomplete="off"
+               spellcheck="true"
                @bind="_editTitle"
                @bind:event="oninput"
                @onkeydown="HandleEditKeyDown"
@@ -23,11 +24,14 @@
     else
     {
         <button type="button"
-                class="task-title"
+                @ref="_titleButton"
+                class="task-title task-color-@Item.Color.ToString().ToLowerInvariant()"
                 aria-label="Edit task: @Item.Title"
-                title="Double-click to edit"
+                title="Double-click to edit; right-click to change color"
                 @onclick="HandleTitleClick"
-                @onkeydown="HandleTitleKeyDown">@Item.Title</button>
+                @onkeydown="HandleTitleKeyDown"
+                @oncontextmenu="OpenColorMenu"
+                @oncontextmenu:preventDefault>@Item.Title</button>
     }
 
     <button type="button"
@@ -35,6 +39,25 @@
             disabled="@Disabled"
             aria-label="Delete task"
             @onclick="DeleteAsync">×</button>
+@if (_showColorMenu)
+{
+    <div class="color-menu-dismiss" @onclick="CloseColorMenu" @oncontextmenu="CloseColorMenu" @oncontextmenu:preventDefault></div>
+    <div class="task-color-menu" role="group" aria-label="Task text color" tabindex="-1" @ref="_colorMenu"
+         style="left: min(@(_menuX.ToString(System.Globalization.CultureInfo.InvariantCulture))px, calc(100vw - 176px)); top: min(@(_menuY.ToString(System.Globalization.CultureInfo.InvariantCulture))px, calc(100vh - 220px))"
+         @onkeydown="HandleColorMenuKeyDown">
+        @foreach (var color in Enum.GetValues<TaskColor>())
+        {
+            <button type="button" class="color-menu-option"
+                    aria-pressed="@(Item.Color == color ? "true" : "false")"
+                    disabled="@Disabled"
+                    @onclick="() => SetColorAsync(color)">
+                <span class="color-menu-swatch task-color-@color.ToString().ToLowerInvariant()" aria-hidden="true">●</span>
+                @color
+                @if (Item.Color == color) { <span aria-hidden="true">✓</span> }
+            </button>
+        }
+    </div>
+}
 </li>
 
 @code {
@@ -42,13 +65,21 @@
     [Parameter] public bool Disabled { get; set; }
     [Parameter, EditorRequired] public Func<int, Task>? OnToggle { get; set; }
     [Parameter, EditorRequired] public Func<int, Task>? OnDelete { get; set; }
+    [Parameter, EditorRequired] public Func<int, TaskColor, Task<bool>>? OnSetColor { get; set; }
     [Parameter, EditorRequired] public Func<TodoItem, Task<bool>>? OnSave { get; set; }
 
     private ElementReference _editor;
+    private ElementReference _titleButton;
+    private ElementReference _colorMenu;
     private string _editTitle = string.Empty;
     private bool _isEditing;
     private bool _focusEditor;
     private bool _isSaving;
+    private bool _showColorMenu;
+    private bool _focusColorMenu;
+    private bool _returnFocus;
+    private double _menuX;
+    private double _menuY;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -57,10 +88,49 @@
             _focusEditor = false;
             await _editor.FocusAsync();
         }
+        if (_focusColorMenu)
+        {
+            _focusColorMenu = false;
+            await _colorMenu.FocusAsync();
+        }
+        if (_returnFocus)
+        {
+            _returnFocus = false;
+            await _titleButton.FocusAsync();
+        }
     }
 
     private Task ToggleAsync() => OnToggle?.Invoke(Item.Id) ?? Task.CompletedTask;
     private Task DeleteAsync() => OnDelete?.Invoke(Item.Id) ?? Task.CompletedTask;
+
+    private void OpenColorMenu(MouseEventArgs args)
+    {
+        if (Disabled) return;
+        _menuX = Math.Max(0, args.ClientX);
+        _menuY = Math.Max(0, args.ClientY);
+        _showColorMenu = true;
+        _focusColorMenu = true;
+    }
+
+    private void CloseColorMenu()
+    {
+        _showColorMenu = false;
+        _returnFocus = true;
+    }
+
+    private void HandleColorMenuKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") CloseColorMenu();
+    }
+
+    private async Task SetColorAsync(TaskColor color)
+    {
+        CloseColorMenu();
+        if (OnSetColor is not null && color != Item.Color)
+        {
+            await OnSetColor(Item.Id, color);
+        }
+    }
 
     private void HandleTitleClick(MouseEventArgs args)
     {

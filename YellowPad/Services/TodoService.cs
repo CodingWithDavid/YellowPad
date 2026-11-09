@@ -58,6 +58,23 @@ public sealed class TodoService(
         }, "update a task");
     }
 
+    public Task SetTaskColorAsync(int id, TaskColor color)
+    {
+        if (!Enum.IsDefined(color))
+        {
+            throw new ArgumentOutOfRangeException(nameof(color));
+        }
+
+        return ExecuteAsync(async () =>
+        {
+            await using var context = await contextFactory.CreateDbContextAsync();
+            var stored = await FindTaskAsync(context, id);
+            stored.Color = color;
+            stored.UpdatedUtc = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+        }, "change a task color");
+    }
+
     public Task ToggleCompletedAsync(int id) => ExecuteAsync(async () =>
     {
         await using var context = await contextFactory.CreateDbContextAsync();

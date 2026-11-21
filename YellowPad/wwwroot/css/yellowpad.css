@@ -136,7 +136,14 @@ input:disabled {
     min-width: 0;
 }
 
+.tab-item {
+    display: flex;
+    align-items: stretch;
+    flex: 0 0 auto;
+}
+
 .tab-button,
+.delete-tab-button,
 .add-tab-button {
     flex: 0 0 auto;
     min-height: 31px;
@@ -164,6 +171,18 @@ input:disabled {
     transform: translateY(1px);
 }
 .tab-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.delete-tab-button {
+    width: 25px;
+    margin-left: -1px;
+    padding: 0;
+    color: #77704b;
+    background: transparent;
+}
+.delete-tab-button:hover {
+    color: #8b3f35;
+    background: rgb(255 246 178 / 58%);
+}
 
 .add-tab-button {
     display: inline-flex;

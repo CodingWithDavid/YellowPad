@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 using YellowPad.Data;
+using YellowPad.Models;
 using YellowPad.Services;
 
 namespace YellowPad.Tests;
@@ -75,6 +77,87 @@ public sealed class TodoServiceTests
         var stored = Assert.Single(await reopened.Service.GetTasksAsync());
         Assert.Equal("Call Jane", stored.Title);
         Assert.Equal(DateTimeKind.Utc, stored.UpdatedUtc?.Kind);
+    }
+
+    [Theory]
+    [InlineData(TaskColor.Default)]
+    [InlineData(TaskColor.Red)]
+    [InlineData(TaskColor.Blue)]
+    [InlineData(TaskColor.Green)]
+    [InlineData(TaskColor.Pink)]
+    public async Task SetTaskColorAsync_PersistsAndSurvivesTitleEdits(TaskColor color)
+    {
+        var path = TestDatabase.CreatePath();
+        await using (var firstSession = await TestDatabase.CreateAsync(path, deleteOnDispose: false))
+        {
+            var item = await firstSession.Service.AddTaskAsync("Call John");
+            await firstSession.Service.SetTaskColorAsync(item.Id, color);
+            await firstSession.Service.UpdateTaskAsync(new TodoItem { Id = item.Id, Title = "Call Jane" });
+        }
+
+        await using var reopened = await TestDatabase.CreateAsync(path);
+        var stored = Assert.Single(await reopened.Service.GetTasksAsync());
+        Assert.Equal(color, stored.Color);
+        Assert.Equal("Call Jane", stored.Title);
+    }
+
+    [Fact]
+    public async Task SetTaskColorAsync_RejectsInvalidColors()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var item = await database.Service.AddTaskAsync("Task");
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => database.Service.SetTaskColorAsync(item.Id, (TaskColor)100));
+        Assert.Equal(TaskColor.Default, Assert.Single(await database.Service.GetTasksAsync()).Color);
+    }
+
+    [Fact]
+    public async Task SetTaskColorAsync_CanResetColorAfterCompletingTask()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var item = await database.Service.AddTaskAsync("Task");
+        await database.Service.SetTaskColorAsync(item.Id, TaskColor.Pink);
+        await database.Service.ToggleCompletedAsync(item.Id);
+        Assert.Equal(TaskColor.Pink, Assert.Single(await database.Service.GetTasksAsync()).Color);
+
+        await database.Service.SetTaskColorAsync(item.Id, TaskColor.Default);
+        Assert.Equal(TaskColor.Default, Assert.Single(await database.Service.GetTasksAsync()).Color);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_UpgradesExistingDatabaseWithoutLosingTasks()
+    {
+        var path = TestDatabase.CreatePath();
+        await using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                    CREATE TABLE "TodoItems" (
+                        "Id" INTEGER NOT NULL CONSTRAINT "PK_TodoItems" PRIMARY KEY AUTOINCREMENT,
+                        "Title" TEXT NOT NULL,
+                        "IsCompleted" INTEGER NOT NULL,
+                        "CreatedUtc" TEXT NOT NULL,
+                        "CompletedUtc" TEXT NULL,
+                        "UpdatedUtc" TEXT NULL,
+                        "SortOrder" INTEGER NOT NULL
+                    );
+                    INSERT INTO "TodoItems" ("Title", "IsCompleted", "CreatedUtc", "SortOrder")
+                    VALUES ('Existing task', 0, '2026-01-01 00:00:00', 0);
+                    """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await using (var database = await TestDatabase.CreateAsync(path, deleteOnDispose: false))
+        {
+            var task = Assert.Single(await database.Service.GetTasksAsync());
+            Assert.Equal("Existing task", task.Title);
+            Assert.Equal(TaskColor.Default, task.Color);
+            await database.Service.SetTaskColorAsync(task.Id, TaskColor.Red);
+        }
+
+        await using var reopened = await TestDatabase.CreateAsync(path);
+        Assert.Equal(TaskColor.Red, Assert.Single(await reopened.Service.GetTasksAsync()).Color);
     }
 
     [Fact]

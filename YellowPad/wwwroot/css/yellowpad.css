@@ -430,12 +430,56 @@ input:disabled {
 
 .todo-row.is-completed { color: #77745d; }
 .todo-row.is-completed .completion-button { color: #6a775b; }
-.todo-row.is-completed .task-title {
+.todo-row.is-completed .task-title.task-color-default {
     color: #85816b;
+}
+.todo-row.is-completed .task-title {
     text-decoration: line-through;
     text-decoration-color: rgb(103 95 69 / 72%);
     text-decoration-thickness: 1px;
 }
+
+.task-title.task-color-red, .edit-task-input.task-color-red, .completed-task-title.task-color-red, .color-menu-swatch.task-color-red { color: #a52b2b; }
+.task-title.task-color-blue, .edit-task-input.task-color-blue, .completed-task-title.task-color-blue, .color-menu-swatch.task-color-blue { color: #2456a1; }
+.task-title.task-color-green, .edit-task-input.task-color-green, .completed-task-title.task-color-green, .color-menu-swatch.task-color-green { color: #286d3a; }
+.task-title.task-color-pink, .edit-task-input.task-color-pink, .completed-task-title.task-color-pink, .color-menu-swatch.task-color-pink { color: #a52d71; }
+
+.color-menu-dismiss {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+}
+
+.task-color-menu {
+    position: fixed;
+    z-index: 81;
+    width: 168px;
+    padding: 6px;
+    background: #fff3b4;
+    border: 1px solid rgb(128 103 39 / 38%);
+    border-radius: 6px;
+    box-shadow: 0 12px 30px rgb(55 47 25 / 24%);
+}
+
+.color-menu-option {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 36px;
+    padding: 5px 9px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: #4c4a39;
+    text-align: left;
+    cursor: pointer;
+    font: 500 13px/1.25 "Segoe UI", sans-serif;
+}
+
+.color-menu-option:hover, .color-menu-option:focus-visible { background: rgb(107 93 45 / 10%); }
+.color-menu-option > span:last-child:not(:first-child) { margin-left: auto; }
+.color-menu-swatch.task-color-default { color: var(--ink); }
 
 .pad-footer {
     position: relative;

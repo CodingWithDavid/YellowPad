@@ -25,7 +25,8 @@
     </shell:WindowChrome.WindowChrome>
     <Grid>
         <blazor:BlazorWebView HostPage="wwwroot\index.html"
-                              Services="{DynamicResource services}">
+                              Services="{DynamicResource services}"
+                              BlazorWebViewInitialized="OnBlazorWebViewInitialized">
             <blazor:BlazorWebView.RootComponents>
                 <blazor:RootComponent Selector="#app"
                                       ComponentType="{x:Type components:YellowPadApp}" />

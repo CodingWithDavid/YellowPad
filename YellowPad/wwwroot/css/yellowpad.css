@@ -68,7 +68,7 @@ input:disabled {
     position: relative;
     isolation: isolate;
     display: grid;
-    grid-template-rows: auto var(--row-height) minmax(0, 1fr) auto;
+    grid-template-rows: auto auto var(--row-height) minmax(0, 1fr) auto;
     width: 100%;
     height: 100%;
     min-height: 0;
@@ -114,6 +114,68 @@ input:disabled {
     height: 1px;
     background: rgb(114 94 38 / 14%);
 }
+
+.tab-strip {
+    position: relative;
+    z-index: 7;
+    display: flex;
+    align-items: end;
+    gap: 8px;
+    min-height: 47px;
+    padding: 8px 26px 0 34px;
+    overflow-x: auto;
+    background: rgb(234 211 116 / 72%);
+    border-bottom: 1px solid rgb(125 100 33 / 22%);
+    scrollbar-width: thin;
+}
+
+.tab-list {
+    display: flex;
+    align-items: end;
+    gap: 3px;
+    min-width: 0;
+}
+
+.tab-button,
+.add-tab-button {
+    flex: 0 0 auto;
+    min-height: 31px;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 6px 6px 0 0;
+    cursor: pointer;
+    font: 600 12px/1 "Segoe UI", sans-serif;
+    transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.tab-button {
+    max-width: 180px;
+    padding: 0 15px;
+    overflow: hidden;
+    color: #77704b;
+    background: transparent;
+}
+
+.tab-button:hover { color: #454735; background: rgb(255 246 178 / 58%); }
+.tab-button.is-active {
+    color: #454735;
+    background: var(--paper-light);
+    border-color: rgb(125 100 33 / 22%);
+    transform: translateY(1px);
+}
+.tab-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.add-tab-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 5px;
+    padding: 0 11px;
+    color: #666950;
+    background: transparent;
+}
+.add-tab-button span:first-child { font: 400 20px/0 Georgia, serif; }
+.add-tab-button:hover { background: rgb(91 83 46 / 10%); transform: translateY(-1px); }
 
 .eyebrow,
 .dialog-kicker {
@@ -569,6 +631,27 @@ input:disabled {
 
 .paper-dialog h2 { margin: 0 0 12px; font: 600 27px/1.1 Georgia, serif; letter-spacing: -.025em; }
 .paper-dialog > p:not(.dialog-kicker) { margin: 0; font: 14px/1.65 "Segoe UI", sans-serif; color: #5f5b46; }
+.add-tab-dialog { width: min(390px, 100%); }
+.tab-name-label {
+    display: block;
+    margin-top: 21px;
+    color: var(--ink-muted);
+    font: 600 11px/1.2 "Segoe UI", sans-serif;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.tab-name-input {
+    height: 43px;
+    margin-top: 6px;
+    padding: 0 10px;
+    border: 1px solid rgb(108 91 42 / 32%);
+    background: rgb(255 246 178 / 62%);
+}
+.tab-name-error {
+    margin: 6px 0 0 !important;
+    color: var(--danger) !important;
+    font-size: 12px !important;
+}
 .completed-dialog { max-height: min(620px, calc(100vh - 48px)); display: flex; flex-direction: column; }
 .completed-task-list {
     min-height: 0;

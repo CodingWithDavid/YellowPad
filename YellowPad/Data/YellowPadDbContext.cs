@@ -8,6 +8,7 @@ public sealed class YellowPadDbContext(DbContextOptions<YellowPadDbContext> opti
     : DbContext(options)
 {
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+    public DbSet<TodoTab> TodoTabs => Set<TodoTab>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,11 +22,20 @@ public sealed class YellowPadDbContext(DbContextOptions<YellowPadDbContext> opti
                 : value);
 
         var item = modelBuilder.Entity<TodoItem>();
+        item.HasOne<TodoTab>()
+            .WithMany()
+            .HasForeignKey(todo => todo.TabId)
+            .OnDelete(DeleteBehavior.Cascade);
         item.Property(todo => todo.Title).IsRequired().HasMaxLength(500);
         item.Property(todo => todo.Color).HasDefaultValue(TaskColor.Default);
         item.Property(todo => todo.CreatedUtc).HasConversion(utcConverter);
         item.Property(todo => todo.CompletedUtc).HasConversion(nullableUtcConverter);
         item.Property(todo => todo.UpdatedUtc).HasConversion(nullableUtcConverter);
         item.HasIndex(todo => new { todo.IsCompleted, todo.SortOrder });
+
+        var tab = modelBuilder.Entity<TodoTab>();
+        tab.Property(value => value.Name).IsRequired().HasMaxLength(100);
+        tab.Property(value => value.CreatedUtc).HasConversion(utcConverter);
+        tab.HasIndex(value => value.SortOrder);
     }
 }

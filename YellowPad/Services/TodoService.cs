@@ -9,12 +9,13 @@ public sealed class TodoService(
     IDbContextFactory<YellowPadDbContext> contextFactory,
     ILogger<TodoService> logger) : ITodoService
 {
-    public Task<IReadOnlyList<TodoItem>> GetTasksAsync() => ExecuteAsync(
+    public Task<IReadOnlyList<TodoItem>> GetTasksAsync(int tabId) => ExecuteAsync(
         async () =>
         {
             await using var context = await contextFactory.CreateDbContextAsync();
             return (IReadOnlyList<TodoItem>)await context.TodoItems
                 .AsNoTracking()
+                .Where(item => item.TabId == tabId)
                 .OrderBy(item => item.IsCompleted)
                 .ThenBy(item => item.SortOrder)
                 .ThenBy(item => item.CreatedUtc)
@@ -22,17 +23,19 @@ public sealed class TodoService(
         },
         "load tasks");
 
-    public Task<TodoItem> AddTaskAsync(string title)
+    public Task<TodoItem> AddTaskAsync(int tabId, string title)
     {
         var trimmedTitle = NormalizeTitle(title);
         return ExecuteAsync(async () =>
         {
             await using var context = await contextFactory.CreateDbContextAsync();
             var highestSortOrder = await context.TodoItems
+                .Where(item => item.TabId == tabId)
                 .Select(item => (int?)item.SortOrder)
                 .MaxAsync() ?? -1;
             var item = new TodoItem
             {
+                TabId = tabId,
                 Title = trimmedTitle,
                 CreatedUtc = DateTime.UtcNow,
                 SortOrder = highestSortOrder + 1
@@ -96,17 +99,22 @@ public sealed class TodoService(
         }
     }, "delete a task");
 
-    public Task DeleteCompletedAsync() => ExecuteAsync(async () =>
+    public Task DeleteCompletedAsync(int tabId) => ExecuteAsync(async () =>
     {
         await using var context = await contextFactory.CreateDbContextAsync();
-        await context.TodoItems.Where(item => item.IsCompleted).ExecuteDeleteAsync();
+        await context.TodoItems.Where(item => item.TabId == tabId && item.IsCompleted).ExecuteDeleteAsync();
     }, "delete completed tasks");
 
-    public Task DeleteAllAsync() => ExecuteAsync(async () =>
+    public Task DeleteAllAsync(int tabId) => ExecuteAsync(async () =>
     {
         await using var context = await contextFactory.CreateDbContextAsync();
-        await context.TodoItems.ExecuteDeleteAsync();
+        await context.TodoItems.Where(item => item.TabId == tabId).ExecuteDeleteAsync();
     }, "delete all tasks");
+
+    public Task<IReadOnlyList<TodoItem>> GetTasksAsync() => GetTasksAsync(1);
+    public Task<TodoItem> AddTaskAsync(string title) => AddTaskAsync(1, title);
+    public Task DeleteCompletedAsync() => DeleteCompletedAsync(1);
+    public Task DeleteAllAsync() => DeleteAllAsync(1);
 
     private static string NormalizeTitle(string title)
     {

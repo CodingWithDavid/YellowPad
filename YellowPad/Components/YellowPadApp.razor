@@ -1,4 +1,5 @@
 @inject ITodoService TodoService
+@inject ITabService TabService
 @inject ILogger<YellowPadApp> Logger
 
 <main class="app-shell">
@@ -8,6 +9,10 @@
                          OnDeleteCompleted="DeleteCompletedAsync"
                          OnRequestDeleteAll="ShowDeleteAllConfirmation"
                          OnShowAbout="ShowAbout" />
+        <YellowPadTabs Tabs="_tabs"
+                       ActiveTabId="_activeTabId"
+                       OnSelect="SelectTabAsync"
+                       OnAdd="AddTabAsync" />
 
         @if (_errorMessage is not null)
         {
@@ -17,7 +22,7 @@
             </div>
         }
 
-        <NewTaskEntry OnAdd="AddTaskAsync" Disabled="_isBusy" />
+        <NewTaskEntry OnAdd="AddTaskAsync" Disabled="@(_isBusy || _activeTabId == 0)" />
         <TodoList Items="@ActiveTaskView.Select(_items, _hiddenCompletedTaskIds)"
                   Disabled="_isBusy"
                   OnToggle="ToggleTaskAsync"
@@ -103,6 +108,7 @@
 
 @code {
     private ElementReference _completedDialogButton;
+    private List<TodoTab> _tabs = [];
     private List<TodoItem> _items = [];
     private readonly HashSet<int> _hiddenCompletedTaskIds = [];
     private bool _hasLoadedInitialTasks;
@@ -113,11 +119,13 @@
     private bool _showDeleteAllConfirmation;
     private bool _showAbout;
     private string? _errorMessage;
+    private int _activeTabId;
 
     private int CompletedCount => _items.Count(item => item.IsCompleted);
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadTabsAsync();
         await ReloadAsync();
         _isLoading = false;
     }
@@ -132,12 +140,22 @@
     }
 
     private async Task ReloadAsync()
+        => await ReloadAsync(resetHiddenCompleted: false);
+
+    private async Task ReloadAsync(bool resetHiddenCompleted)
     {
         try
         {
-            _items = (await TodoService.GetTasksAsync()).ToList();
-            if (!_hasLoadedInitialTasks)
+            if (_activeTabId == 0)
             {
+                _items = [];
+                return;
+            }
+
+            _items = (await TodoService.GetTasksAsync(_activeTabId)).ToList();
+            if (!_hasLoadedInitialTasks || resetHiddenCompleted)
+            {
+                _hiddenCompletedTaskIds.Clear();
                 _hiddenCompletedTaskIds.UnionWith(
                     _items.Where(item => item.IsCompleted).Select(item => item.Id));
                 _hasLoadedInitialTasks = true;
@@ -156,7 +174,7 @@
     }
 
     private async Task<bool> AddTaskAsync(string title) => await RunMutationAsync(
-        () => TodoService.AddTaskAsync(title),
+        () => TodoService.AddTaskAsync(_activeTabId, title),
         "That task couldn’t be added.");
 
     private async Task ToggleTaskAsync(int id) => await RunMutationAsync(
@@ -178,13 +196,15 @@
     private async Task DeleteCompletedAsync()
     {
         await RunMutationAsync(
-            TodoService.DeleteCompletedAsync,
+            () => TodoService.DeleteCompletedAsync(_activeTabId),
             "Completed tasks couldn’t be deleted.");
     }
 
     private async Task DeleteAllAsync()
     {
-        if (await RunMutationAsync(TodoService.DeleteAllAsync, "The pad couldn’t be cleared."))
+        if (await RunMutationAsync(
+                () => TodoService.DeleteAllAsync(_activeTabId),
+                "The pad couldn’t be cleared."))
         {
             _showDeleteAllConfirmation = false;
         }
@@ -230,4 +250,55 @@
     private void ShowAbout() => _showAbout = true;
     private void HideAbout() => _showAbout = false;
     private void DismissError() => _errorMessage = null;
+
+    private async Task LoadTabsAsync()
+    {
+        try
+        {
+            _tabs = (await TabService.GetTabsAsync()).ToList();
+            _activeTabId = _tabs.FirstOrDefault()?.Id ?? 0;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Unable to load YellowPad tabs.");
+            _errorMessage = "The tabs couldn’t be loaded. Your saved lists are still on this computer.";
+        }
+    }
+
+    private async Task SelectTabAsync(int tabId)
+    {
+        if (_isBusy || _activeTabId == tabId || !_tabs.Any(tab => tab.Id == tabId))
+        {
+            return;
+        }
+
+        _activeTabId = tabId;
+        await ReloadAsync(resetHiddenCompleted: true);
+    }
+
+    private async Task<bool> AddTabAsync(string name)
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var tab = await TabService.AddTabAsync(name);
+            _tabs = (await TabService.GetTabsAsync()).ToList();
+            _activeTabId = tab.Id;
+            await ReloadAsync(resetHiddenCompleted: true);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "A YellowPad tab operation failed.");
+            _errorMessage = "That tab couldn’t be added.";
+            return false;
+        }
+        finally
+        {
+            _isBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
 }

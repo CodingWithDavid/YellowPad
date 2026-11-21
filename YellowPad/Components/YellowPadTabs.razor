@@ -1,0 +1,101 @@
+<nav class="tab-strip" aria-label="Task tabs">
+    <div class="tab-list" role="tablist">
+        @foreach (var tab in Tabs)
+        {
+            <button type="button"
+                    class="tab-button @(tab.Id == ActiveTabId ? "is-active" : null)"
+                    role="tab"
+                    aria-selected="@(tab.Id == ActiveTabId ? "true" : "false")"
+                    @onclick="() => SelectTabAsync(tab.Id)">
+                <span class="tab-name">@tab.Name</span>
+            </button>
+        }
+    </div>
+    <button type="button" class="add-tab-button" aria-label="Add a new tab" @onclick="OpenAddTab">
+        <span aria-hidden="true">+</span>
+        <span>New tab</span>
+    </button>
+</nav>
+
+@if (_isAdding)
+{
+    <div class="modal-scrim tab-modal-scrim" @onclick="CloseAddTab">
+        <section class="paper-dialog add-tab-dialog" role="dialog" aria-modal="true" aria-labelledby="add-tab-title" @onclick:stopPropagation>
+            <p class="dialog-kicker">Make room for another list</p>
+            <h2 id="add-tab-title">Name your new tab</h2>
+            <label class="tab-name-label" for="new-tab-name">Tab name</label>
+            <input id="new-tab-name"
+                   @ref="_nameInput"
+                   class="paper-input tab-name-input"
+                   maxlength="100"
+                   autocomplete="off"
+                   @bind="_newName"
+                   @bind:event="oninput"
+                   @onkeydown="HandleNameKeyDown" />
+            @if (_showError)
+            {
+                <p class="tab-name-error" role="alert">Enter a name to create this tab.</p>
+            }
+            <div class="dialog-actions">
+                <button type="button" class="text-button" @onclick="CloseAddTab">Cancel</button>
+                <button type="button" class="primary-button" @onclick="CreateTabAsync">Add tab</button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<TodoTab> Tabs { get; set; } = [];
+    [Parameter] public int ActiveTabId { get; set; }
+    [Parameter, EditorRequired] public Func<int, Task>? OnSelect { get; set; }
+    [Parameter, EditorRequired] public Func<string, Task<bool>>? OnAdd { get; set; }
+
+    private ElementReference _nameInput;
+    private string _newName = string.Empty;
+    private bool _isAdding;
+    private bool _showError;
+
+    private async Task SelectTabAsync(int tabId)
+    {
+        if (OnSelect is not null)
+        {
+            await OnSelect(tabId);
+        }
+    }
+
+    private void OpenAddTab()
+    {
+        _newName = string.Empty;
+        _showError = false;
+        _isAdding = true;
+    }
+
+    private void CloseAddTab() => _isAdding = false;
+
+    private async Task HandleNameKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            CloseAddTab();
+        }
+        else if (args.Key == "Enter")
+        {
+            await CreateTabAsync();
+        }
+    }
+
+    private async Task CreateTabAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newName) || OnAdd is null)
+        {
+            _showError = true;
+            await _nameInput.FocusAsync();
+            return;
+        }
+
+        if (await OnAdd(_newName))
+        {
+            CloseAddTab();
+        }
+    }
+}

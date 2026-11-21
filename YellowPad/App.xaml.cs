@@ -22,6 +22,7 @@ public partial class App : Application
         services.AddDbContextFactory<YellowPadDbContext>(options =>
             options.UseSqlite($"Data Source={databasePath}"));
         services.AddSingleton<DatabaseInitializer>();
+        services.AddSingleton<ITabService, TabService>();
         services.AddSingleton<ITodoService, TodoService>();
         services.AddSingleton<IVoiceCommandService, WindowsVoiceCommandService>();
         services.AddSingleton<WindowService>();

@@ -33,6 +33,21 @@ public sealed class TodoServiceTests
     }
 
     [Fact]
+    public async Task Tabs_IsolateTasksAndPersistNewTabNames()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+
+        var defaultTab = Assert.Single(await database.TabService.GetTabsAsync());
+        var addedTab = await database.TabService.AddTabAsync("  Work  ");
+        await database.Service.AddTaskAsync(defaultTab.Id, "Personal task");
+        await database.Service.AddTaskAsync(addedTab.Id, "Work task");
+
+        Assert.Equal("Work", addedTab.Name);
+        Assert.Equal(["Personal task"], (await database.Service.GetTasksAsync(defaultTab.Id)).Select(task => task.Title));
+        Assert.Equal(["Work task"], (await database.Service.GetTasksAsync(addedTab.Id)).Select(task => task.Title));
+    }
+
+    [Fact]
     public async Task GetTasksAsync_ListsActiveBeforeCompletedAndKeepsCreationOrder()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -189,10 +204,12 @@ public sealed class TodoServiceTests
                 .Options;
             _factory = new TestDbContextFactory(options);
             Service = new TodoService(_factory, NullLogger<TodoService>.Instance);
+            TabService = new TabService(_factory, NullLogger<TabService>.Instance);
         }
 
         public string Path { get; }
         public TodoService Service { get; }
+        public TabService TabService { get; }
 
         public static string CreatePath() =>
             System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"yellowpad-tests-{Guid.NewGuid():N}.db");

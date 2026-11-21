@@ -324,14 +324,15 @@
             await TabService.DeleteTabAsync(tabId);
             _tabs = (await TabService.GetTabsAsync()).ToList();
 
-            if (_activeTabId == tabId)
+            var deletedActiveTab = _activeTabId == tabId;
+            if (deletedActiveTab)
             {
                 _activeTabId = _tabs.Count == 0
                     ? 0
                     : _tabs[Math.Min(deletedIndex, _tabs.Count - 1)].Id;
             }
 
-            await ReloadAsync(resetHiddenCompleted: true);
+            await ReloadAsync(resetHiddenCompleted: deletedActiveTab);
         }
         catch (Exception exception)
         {

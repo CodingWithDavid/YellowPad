@@ -3,6 +3,7 @@
         @foreach (var tab in Tabs)
         {
             <button type="button"
+                    @key="tab.Id"
                     class="tab-button @(tab.Id == ActiveTabId ? "is-active" : null)"
                     role="tab"
                     aria-selected="@(tab.Id == ActiveTabId ? "true" : "false")"
@@ -47,7 +48,7 @@
 @code {
     [Parameter] public IReadOnlyList<TodoTab> Tabs { get; set; } = [];
     [Parameter] public int ActiveTabId { get; set; }
-    [Parameter, EditorRequired] public Func<int, Task>? OnSelect { get; set; }
+    [Parameter, EditorRequired] public EventCallback<int> OnSelect { get; set; }
     [Parameter, EditorRequired] public Func<string, Task<bool>>? OnAdd { get; set; }
 
     private ElementReference _nameInput;
@@ -57,10 +58,7 @@
 
     private async Task SelectTabAsync(int tabId)
     {
-        if (OnSelect is not null)
-        {
-            await OnSelect(tabId);
-        }
+        await OnSelect.InvokeAsync(tabId);
     }
 
     private void OpenAddTab()

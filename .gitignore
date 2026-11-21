@@ -55,3 +55,6 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+/.vs/YellowPad/FileContentIndex
+/YellowPad/Properties/PublishProfiles
+/YellowPad/YellowPad.csproj.user

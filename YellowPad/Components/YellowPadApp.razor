@@ -12,7 +12,8 @@
         <YellowPadTabs Tabs="_tabs"
                        ActiveTabId="_activeTabId"
                        OnSelect="SelectTabAsync"
-                       OnAdd="AddTabAsync" />
+                       OnAdd="AddTabAsync"
+                       OnDelete="DeleteTabAsync" />
 
         @if (_errorMessage is not null)
         {
@@ -294,6 +295,48 @@
             Logger.LogError(exception, "A YellowPad tab operation failed.");
             _errorMessage = "That tab couldn’t be added.";
             return false;
+        }
+        finally
+        {
+            _isBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task DeleteTabAsync(int tabId)
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        var deletedIndex = _tabs.FindIndex(tab => tab.Id == tabId);
+        if (deletedIndex < 0)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            await TabService.DeleteTabAsync(tabId);
+            _tabs = (await TabService.GetTabsAsync()).ToList();
+
+            if (_activeTabId == tabId)
+            {
+                _activeTabId = _tabs.Count == 0
+                    ? 0
+                    : _tabs[Math.Min(deletedIndex, _tabs.Count - 1)].Id;
+            }
+
+            await ReloadAsync(resetHiddenCompleted: true);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "A YellowPad tab operation failed.");
+            _errorMessage = "That tab couldn’t be deleted.";
         }
         finally
         {

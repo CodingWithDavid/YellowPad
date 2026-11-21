@@ -48,6 +48,19 @@ public sealed class TodoServiceTests
     }
 
     [Fact]
+    public async Task DeleteTabAsync_RemovesTabAndItsTasks()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var tab = await database.TabService.AddTabAsync("Work");
+        await database.Service.AddTaskAsync(tab.Id, "Work task");
+
+        await database.TabService.DeleteTabAsync(tab.Id);
+
+        Assert.DoesNotContain(await database.TabService.GetTabsAsync(), item => item.Id == tab.Id);
+        Assert.Empty(await database.Service.GetTasksAsync(tab.Id));
+    }
+
+    [Fact]
     public async Task GetTasksAsync_ListsActiveBeforeCompletedAndKeepsCreationOrder()
     {
         await using var database = await TestDatabase.CreateAsync();

@@ -2,14 +2,20 @@
     <div class="tab-list" role="tablist">
         @foreach (var tab in Tabs)
         {
-            <button type="button"
-                    @key="tab.Id"
-                    class="tab-button @(tab.Id == ActiveTabId ? "is-active" : null)"
-                    role="tab"
-                    aria-selected="@(tab.Id == ActiveTabId ? "true" : "false")"
-                    @onclick="() => SelectTabAsync(tab.Id)">
-                <span class="tab-name">@tab.Name</span>
-            </button>
+            <div @key="tab.Id" class="tab-item">
+                <button type="button"
+                        class="tab-button @(tab.Id == ActiveTabId ? "is-active" : null)"
+                        role="tab"
+                        aria-selected="@(tab.Id == ActiveTabId ? "true" : "false")"
+                        @onclick="() => SelectTabAsync(tab.Id)">
+                    <span class="tab-name">@tab.Name</span>
+                </button>
+                <button type="button"
+                        class="delete-tab-button"
+                        aria-label="Delete tab @tab.Name"
+                        title="Delete tab"
+                        @onclick="() => DeleteTabAsync(tab.Id)">×</button>
+            </div>
         }
     </div>
     <button type="button" class="add-tab-button" aria-label="Add a new tab" @onclick="OpenAddTab">
@@ -50,6 +56,7 @@
     [Parameter] public int ActiveTabId { get; set; }
     [Parameter, EditorRequired] public EventCallback<int> OnSelect { get; set; }
     [Parameter, EditorRequired] public Func<string, Task<bool>>? OnAdd { get; set; }
+    [Parameter, EditorRequired] public Func<int, Task>? OnDelete { get; set; }
 
     private ElementReference _nameInput;
     private string _newName = string.Empty;
@@ -60,6 +67,8 @@
     {
         await OnSelect.InvokeAsync(tabId);
     }
+
+    private Task DeleteTabAsync(int tabId) => OnDelete?.Invoke(tabId) ?? Task.CompletedTask;
 
     private void OpenAddTab()
     {

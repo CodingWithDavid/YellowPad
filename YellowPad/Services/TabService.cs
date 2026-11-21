@@ -43,6 +43,17 @@ public sealed class TabService(
         }, "add a tab");
     }
 
+    public Task DeleteTabAsync(int id) => ExecuteAsync(async () =>
+    {
+        await using var context = await contextFactory.CreateDbContextAsync();
+        var tab = await context.TodoTabs.FindAsync(id);
+        if (tab is not null)
+        {
+            context.TodoTabs.Remove(tab);
+            await context.SaveChangesAsync();
+        }
+    }, "delete a tab");
+
     private static string NormalizeName(string name)
     {
         var trimmed = name?.Trim() ?? string.Empty;
@@ -59,6 +70,19 @@ public sealed class TabService(
         try
         {
             return await action();
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Unable to {Operation}.", operation);
+            throw;
+        }
+    }
+
+    private async Task ExecuteAsync(Func<Task> action, string operation)
+    {
+        try
+        {
+            await action();
         }
         catch (Exception exception)
         {
